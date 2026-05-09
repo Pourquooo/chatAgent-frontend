@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { message as antdMessage } from "antd";
+import { Button, message as antdMessage } from "antd";
+import { HistoryOutlined } from "@ant-design/icons";
 import AgentChatHistory from "./agentChatView/AgentChatHistory.tsx";
 import AgentChatInput from "./agentChatView/AgentChatInput.tsx";
+import TraceDrawer from "./agentChatView/TraceDrawer.tsx";
 import {
   createChatMessage,
   createChatSession,
@@ -116,6 +118,7 @@ const AgentChatView: React.FC = () => {
   const [agentStatusType, setAgentStatusType] = useState<
     SseMessageType | undefined
   >(undefined);
+  const [traceDrawerOpen, setTraceDrawerOpen] = useState(false);
 
   useEffect(() => {
     // sse 连接处理, 不是对话消息不开连接
@@ -183,6 +186,16 @@ const AgentChatView: React.FC = () => {
   // 如果有 chatSessionId，显示正常的聊天界面
   return (
     <div className="flex flex-col h-full">
+      <div className="border-b border-gray-200 px-4 py-2 flex justify-end bg-white">
+        <Button
+          type="text"
+          size="small"
+          icon={<HistoryOutlined />}
+          onClick={() => setTraceDrawerOpen(true)}
+        >
+          执行历史
+        </Button>
+      </div>
       <AgentChatHistory
         messages={messages}
         displayAgentStatus={displayAgentStatus}
@@ -192,6 +205,11 @@ const AgentChatView: React.FC = () => {
       <div className="border-t border-gray-200 p-4 bg-white">
         <AgentChatInput onSend={handleSendMessage} />
       </div>
+      <TraceDrawer
+        open={traceDrawerOpen}
+        onClose={() => setTraceDrawerOpen(false)}
+        sessionId={chatSessionId}
+      />
     </div>
   );
 };

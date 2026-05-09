@@ -375,3 +375,81 @@ export async function getOptionalTools(): Promise<GetOptionalToolsResponse> {
   const tools = await get<ToolVO[]>("/tools");
   return { tools };
 }
+
+/**
+ * Agent 执行 Trace（可观测性）相关类型和接口
+ */
+export type TraceStatus = "RUNNING" | "FINISHED" | "SUCCESS" | "ERROR";
+export type TracePhase = "THINK" | "EXECUTE";
+
+export interface AgentTrace {
+  id: string;
+  sessionId: string;
+  agentId: string;
+  userMessage?: string;
+  status: TraceStatus;
+  totalSteps?: number;
+  totalLatencyMs?: number;
+  totalPromptTokens?: number;
+  totalCompletionTokens?: number;
+  errorMessage?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AgentStepTrace {
+  id: string;
+  traceId: string;
+  stepIndex: number;
+  phase: TracePhase;
+  modelName?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  latencyMs?: number;
+  status: TraceStatus;
+  errorMessage?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  createdAt?: string;
+}
+
+export interface ToolCallTrace {
+  id: string;
+  traceId: string;
+  stepId: string;
+  toolName: string;
+  arguments?: string;
+  result?: string;
+  latencyMs?: number;
+  status: TraceStatus;
+  errorMessage?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  createdAt?: string;
+}
+
+export interface GetTraceDetailResponse {
+  trace: AgentTrace;
+  steps: AgentStepTrace[];
+  toolCalls: ToolCallTrace[];
+}
+
+/**
+ * 按会话列出所有 trace（最新在前）
+ */
+export async function getTracesBySessionId(
+  sessionId: string,
+): Promise<AgentTrace[]> {
+  return get<AgentTrace[]>(`/traces/session/${sessionId}`);
+}
+
+/**
+ * 获取单条 trace 的完整链路
+ */
+export async function getTraceDetail(
+  traceId: string,
+): Promise<GetTraceDetailResponse> {
+  return get<GetTraceDetailResponse>(`/traces/${traceId}`);
+}
