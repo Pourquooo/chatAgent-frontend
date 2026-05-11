@@ -7,8 +7,12 @@ import AddAgentModal from "./modals/AddAgentModal.tsx";
 import ChatTabContent from "./tabs/ChatTabContent.tsx";
 import KnowledgeBaseTabContent from "./tabs/KnowledgeBaseTabContent.tsx";
 import AddKnowledgeBaseModal from "./modals/AddKnowledgeBaseModal.tsx";
+import McpServerTabContent from "./tabs/McpServerTabContent.tsx";
+import AddMcpServerModal from "./modals/AddMcpServerModal.tsx";
 import { useAgents } from "../hooks/useAgents.ts";
 import { useKnowledgeBases } from "../hooks/useKnowledgeBases.ts";
+import { useMcpServers } from "../hooks/useMcpServers.ts";
+import type { McpServerVO } from "../api/api.ts";
 
 interface SideMenuProps {
   children?: React.ReactNode;
@@ -37,6 +41,21 @@ const SideMenu: React.FC<SideMenuProps> = () => {
   };
   const { agents, createAgentHandle, deleteAgentHandle, updateAgentHandle } =
     useAgents();
+
+  // MCP 服务器
+  const {
+    mcpServers,
+    createMcpServerHandle,
+    updateMcpServerHandle,
+    deleteMcpServerHandle,
+  } = useMcpServers();
+  const [isAddMcpServerModalOpen, setIsAddMcpServerModalOpen] = useState(false);
+  const [editingMcpServer, setEditingMcpServer] =
+    useState<McpServerVO | null>(null);
+  const toggleAddMcpServerModal = () => {
+    setIsAddMcpServerModalOpen(!isAddMcpServerModalOpen);
+    setEditingMcpServer(null);
+  };
 
   const [activeKey, setActiveKey] = useState(() => {
     if (location.pathname.startsWith("/agent")) return "agent";
@@ -87,6 +106,24 @@ const SideMenu: React.FC<SideMenuProps> = () => {
         />
       ),
     },
+    {
+      key: "mcp",
+      label: <span className="select-none">MCP</span>,
+      children: (
+        <McpServerTabContent
+          mcpServers={mcpServers}
+          onCreateMcpServerClick={() => {
+            setEditingMcpServer(null);
+            setIsAddMcpServerModalOpen(true);
+          }}
+          onEditMcpServer={(srv) => {
+            setEditingMcpServer(srv);
+            setIsAddMcpServerModalOpen(true);
+          }}
+          onDeleteMcpServer={deleteMcpServerHandle}
+        />
+      ),
+    },
   ];
 
   return (
@@ -118,6 +155,13 @@ const SideMenu: React.FC<SideMenuProps> = () => {
         open={isAddKnowledgeBaseModalOpen}
         onClose={toggleAddKnowledgeBaseModal}
         createKnowledgeBaseHandle={createKnowledgeBaseHandle}
+      />
+      <AddMcpServerModal
+        open={isAddMcpServerModalOpen}
+        onClose={toggleAddMcpServerModal}
+        createMcpServerHandle={createMcpServerHandle}
+        updateMcpServerHandle={updateMcpServerHandle}
+        editingMcpServer={editingMcpServer}
       />
     </div>
   );

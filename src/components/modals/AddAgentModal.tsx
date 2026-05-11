@@ -11,6 +11,8 @@ import {
   type ToolVO,
   type SkillMetadata,
   getSkills,
+  type McpServerVO,
+  getMcpServers,
 } from "../../api/api.ts";
 import { useKnowledgeBases } from "../../hooks/useKnowledgeBases.ts";
 
@@ -30,7 +32,7 @@ const menuItems = [
   { key: "model", label: "模型设置" },
   { key: "knowledge", label: "知识库设置" },
   { key: "skills", label: "技能" },
-  // { key: "mcp", label: "MCP 服务器" },
+  { key: "mcp", label: "MCP 服务器" },
   { key: "tools", label: "工具调用" },
   // { key: "memory", label: "全局记忆" },
 ];
@@ -54,6 +56,9 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({
   // 技能列表
   const [skills, setSkills] = useState<SkillMetadata[]>([]);
 
+  // MCP 服务器列表
+  const [mcpServers, setMcpServers] = useState<McpServerVO[]>([]);
+
   // 表单数据
   const [formData, setFormData] = useState<CreateAgentRequest>({
     name: "智能体助手",
@@ -63,6 +68,7 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({
     allowedTools: [],
     allowedKbs: [],
     allowedSkills: [],
+    allowedMcps: [],
     chatOptions: {
       temperature: 0.7,
       topP: 1.0,
@@ -83,6 +89,7 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({
         allowedTools: editingAgent.allowedTools || [],
         allowedKbs: editingAgent.allowedKbs || [],
         allowedSkills: editingAgent.allowedSkills || [],
+        allowedMcps: editingAgent.allowedMcps || [],
         chatOptions: editingAgent.chatOptions || {
           temperature: 0.7,
           topP: 1.0,
@@ -99,6 +106,7 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({
         allowedTools: [],
         allowedKbs: [],
         allowedSkills: [],
+        allowedMcps: [],
         chatOptions: {
           temperature: 0.7,
           topP: 1.0,
@@ -135,6 +143,20 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({
 
     fetchSkills().then();
   }, []);
+
+  // 获取 MCP 服务器列表 (每次打开弹窗都拉一次, 保证看到最新启用状态)
+  useEffect(() => {
+    if (!open) return;
+    async function fetchMcp() {
+      try {
+        const resp = await getMcpServers();
+        setMcpServers(resp.mcpServers || []);
+      } catch (error) {
+        console.error("获取 MCP 服务器列表失败:", error);
+      }
+    }
+    fetchMcp().then();
+  }, [open]);
 
   const isEditMode = !!editingAgent;
 
@@ -530,6 +552,115 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({
                                     </span>
                                   ))}
                                 </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            {selectedKey === "mcp" && (
+              <div>
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-medium mb-3">
+                    MCP 服务器
+                  </label>
+                  <p className="text-sm text-gray-500 mb-4">
+                    MCP (Model Context Protocol) 服务器提供远端工具能力。勾选后，Agent 在运行时会懒加载对应连接并把远端工具和本地工具一起暴露给模型。工具名会加 <code className="px-1 bg-gray-100 rounded">mcp_</code> 前缀避免冲突。
+                  </p>
+                  {mcpServers.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>暂无可用 MCP 服务器</p>
+                      <p className="text-xs mt-1">请先在侧边栏 "MCP 服务器" 标签创建</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {mcpServers.map((srv) => {
+                        const srvId = srv.id;
+                        const isSelected =
+                          formData.allowedMcps?.includes(srvId);
+                        const disabled = !srv.enabled;
+                        return (
+                          <div
+                            key={srvId}
+                            className={`border rounded-lg p-4 transition-all ${
+                              disabled
+                                ? "opacity-60 cursor-not-allowed border-gray-200"
+                                : "cursor-pointer hover:border-blue-400 hover:bg-blue-50"
+                            } ${
+                              isSelected
+                                ? "border-blue-500 bg-blue-50"
+                                : "border-gray-200"
+                            }`}
+                            onClick={() => {
+                              if (disabled) return;
+                              const current = formData.allowedMcps || [];
+                              if (isSelected) {
+                                setFormData({
+                                  ...formData,
+                                  allowedMcps: current.filter(
+                                    (s) => s !== srvId,
+                                  ),
+                                });
+                              } else {
+                                setFormData({
+                                  ...formData,
+                                  allowedMcps: [...current, srvId],
+                                });
+                              }
+                            }}
+                          >
+                            <div className="flex items-start gap-2">
+                              <Checkbox
+                                checked={isSelected}
+                                disabled={disabled}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  const current = formData.allowedMcps || [];
+                                  if (e.target.checked) {
+                                    setFormData({
+                                      ...formData,
+                                      allowedMcps: [...current, srvId],
+                                    });
+                                  } else {
+                                    setFormData({
+                                      ...formData,
+                                      allowedMcps: current.filter(
+                                        (s) => s !== srvId,
+                                      ),
+                                    });
+                                  }
+                                }}
+                                className="mr-3"
+                              />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                  <span className="font-medium text-gray-900">
+                                    {srv.name}
+                                  </span>
+                                  <span className="text-xs px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded">
+                                    {srv.transport}
+                                  </span>
+                                  <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
+                                    {srv.authType}
+                                  </span>
+                                  {disabled && (
+                                    <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-600 rounded">
+                                      已禁用
+                                    </span>
+                                  )}
+                                </div>
+                                {srv.description && (
+                                  <p className="text-sm text-gray-600 mb-1">
+                                    {srv.description}
+                                  </p>
+                                )}
+                                <p className="text-xs text-gray-400 font-mono break-all">
+                                  {srv.endpoint}
+                                </p>
                               </div>
                             </div>
                           </div>

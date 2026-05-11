@@ -18,6 +18,7 @@ export interface CreateAgentRequest {
   allowedTools?: string[];
   allowedKbs?: string[];
   allowedSkills?: string[];
+  allowedMcps?: string[];
   chatOptions?: ChatOptions;
 }
 
@@ -29,6 +30,7 @@ export interface UpdateAgentRequest {
   allowedTools?: string[];
   allowedKbs?: string[];
   allowedSkills?: string[];
+  allowedMcps?: string[];
   chatOptions?: ChatOptions;
 }
 
@@ -45,6 +47,7 @@ export interface AgentVO {
   allowedTools?: string[];
   allowedKbs?: string[];
   allowedSkills?: string[];
+  allowedMcps?: string[];
   chatOptions?: ChatOptions;
   createdAt?: string;
   updatedAt?: string;
@@ -400,6 +403,103 @@ export async function getSkills(): Promise<SkillMetadata[]> {
 }
 
 /**
+ * MCP 服务器相关类型和接口
+ */
+export type McpTransport = "SSE" | "STREAMABLE_HTTP";
+export type McpAuthType = "NONE" | "HEADER" | "OAUTH2";
+
+export interface McpAuthConfig {
+  /** HEADER 模式: 请求头键值对; 回显时 value 被脱敏为 ****** */
+  headers?: Record<string, string>;
+  /** OAUTH2 模式: Client Credentials 授权 */
+  tokenUrl?: string;
+  clientId?: string;
+  /** 回显时脱敏为 ******; 提交时若值为 ****** 表示保留旧值 */
+  clientSecret?: string;
+  scope?: string;
+  audience?: string;
+}
+
+export interface McpServerVO {
+  id: string;
+  name: string;
+  description?: string;
+  transport: McpTransport;
+  endpoint: string;
+  authType: McpAuthType;
+  authConfig?: McpAuthConfig;
+  enabled: boolean;
+}
+
+export interface CreateMcpServerRequest {
+  name: string;
+  description?: string;
+  transport: McpTransport;
+  endpoint: string;
+  authType: McpAuthType;
+  authConfig?: McpAuthConfig;
+  enabled?: boolean;
+}
+
+export interface UpdateMcpServerRequest {
+  name?: string;
+  description?: string;
+  transport?: McpTransport;
+  endpoint?: string;
+  authType?: McpAuthType;
+  authConfig?: McpAuthConfig;
+  enabled?: boolean;
+}
+
+export interface GetMcpServersResponse {
+  mcpServers: McpServerVO[];
+}
+
+export interface CreateMcpServerResponse {
+  mcpServerId: string;
+}
+
+export interface McpToolPreviewVO {
+  name: string;
+  description?: string;
+  /** JSON Schema 序列化后的字符串, 可能为 null */
+  inputSchema?: string;
+}
+
+export async function getMcpServers(): Promise<GetMcpServersResponse> {
+  return get<GetMcpServersResponse>("/mcp-servers");
+}
+
+export async function createMcpServer(
+  request: CreateMcpServerRequest,
+): Promise<CreateMcpServerResponse> {
+  return post<CreateMcpServerResponse>("/mcp-servers", request);
+}
+
+export async function deleteMcpServer(mcpServerId: string): Promise<void> {
+  return del<void>(`/mcp-servers/${mcpServerId}`);
+}
+
+export async function updateMcpServer(
+  mcpServerId: string,
+  request: UpdateMcpServerRequest,
+): Promise<void> {
+  return patch<void>(`/mcp-servers/${mcpServerId}`, request);
+}
+
+export async function previewMcpTools(
+  mcpServerId: string,
+): Promise<McpToolPreviewVO[]> {
+  return get<McpToolPreviewVO[]>(`/mcp-servers/${mcpServerId}/tools`);
+}
+
+export async function pingMcpServer(
+  mcpServerId: string,
+): Promise<{ ok: boolean }> {
+  return post<{ ok: boolean }>(`/mcp-servers/${mcpServerId}/ping`);
+}
+
+/**
  * Agent 执行 Trace（可观测性）相关类型和接口
  */
 export type TraceStatus = "RUNNING" | "FINISHED" | "SUCCESS" | "ERROR";
@@ -448,6 +548,8 @@ export interface ToolCallTrace {
   latencyMs?: number;
   status: TraceStatus;
   errorMessage?: string;
+  /** LOCAL / MCP:<serverId>; 旧数据可能为空, 前端按 LOCAL 显示 */
+  source?: string;
   startedAt?: string;
   finishedAt?: string;
   createdAt?: string;
