@@ -9,6 +9,8 @@ import {
   type ModelType,
   getOptionalTools,
   type ToolVO,
+  type SkillMetadata,
+  getSkills,
 } from "../../api/api.ts";
 import { useKnowledgeBases } from "../../hooks/useKnowledgeBases.ts";
 
@@ -27,6 +29,7 @@ const menuItems = [
   { key: "base", label: "基础设置" },
   { key: "model", label: "模型设置" },
   { key: "knowledge", label: "知识库设置" },
+  { key: "skills", label: "技能" },
   // { key: "mcp", label: "MCP 服务器" },
   { key: "tools", label: "工具调用" },
   // { key: "memory", label: "全局记忆" },
@@ -48,6 +51,9 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({
   // 工具列表
   const [tools, setTools] = useState<ToolVO[]>([]);
 
+  // 技能列表
+  const [skills, setSkills] = useState<SkillMetadata[]>([]);
+
   // 表单数据
   const [formData, setFormData] = useState<CreateAgentRequest>({
     name: "智能体助手",
@@ -56,6 +62,7 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({
     model: "deepseek-chat",
     allowedTools: [],
     allowedKbs: [],
+    allowedSkills: [],
     chatOptions: {
       temperature: 0.7,
       topP: 1.0,
@@ -75,6 +82,7 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({
         model: editingAgent.model,
         allowedTools: editingAgent.allowedTools || [],
         allowedKbs: editingAgent.allowedKbs || [],
+        allowedSkills: editingAgent.allowedSkills || [],
         chatOptions: editingAgent.chatOptions || {
           temperature: 0.7,
           topP: 1.0,
@@ -90,6 +98,7 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({
         model: "deepseek-chat",
         allowedTools: [],
         allowedKbs: [],
+        allowedSkills: [],
         chatOptions: {
           temperature: 0.7,
           topP: 1.0,
@@ -111,6 +120,20 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({
     }
 
     fetchTools().then();
+  }, []);
+
+  // 获取技能列表
+  useEffect(() => {
+    async function fetchSkills() {
+      try {
+        const list = await getSkills();
+        setSkills(list || []);
+      } catch (error) {
+        console.error("获取技能列表失败:", error);
+      }
+    }
+
+    fetchSkills().then();
   }, []);
 
   const isEditMode = !!editingAgent;
@@ -404,6 +427,119 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({
                 </div>
               </div>
             )}
+            {selectedKey === "skills" && (
+              <div>
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-medium mb-3">
+                    技能
+                  </label>
+                  <p className="text-sm text-gray-500 mb-4">
+                    技能是"一组工具 + 提示片段"的能力包。用户消息命中触发词时自动激活对应技能，否则激活全部已选技能。配置了技能后将优先于"工具调用"生效。
+                  </p>
+                  {skills.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>暂无可用技能</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {skills.map((skill) => {
+                        const skillId = skill.id;
+                        const isSelected =
+                          formData.allowedSkills?.includes(skillId);
+                        return (
+                          <div
+                            key={skillId}
+                            className={`border rounded-lg p-4 cursor-pointer transition-all hover:border-blue-400 hover:bg-blue-50 ${
+                              isSelected
+                                ? "border-blue-500 bg-blue-50"
+                                : "border-gray-200"
+                            }`}
+                            onClick={() => {
+                              const current = formData.allowedSkills || [];
+                              if (isSelected) {
+                                setFormData({
+                                  ...formData,
+                                  allowedSkills: current.filter(
+                                    (s) => s !== skillId,
+                                  ),
+                                });
+                              } else {
+                                setFormData({
+                                  ...formData,
+                                  allowedSkills: [...current, skillId],
+                                });
+                              }
+                            }}
+                          >
+                            <div className="flex items-start gap-2">
+                              <Checkbox
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  const current = formData.allowedSkills || [];
+                                  if (e.target.checked) {
+                                    setFormData({
+                                      ...formData,
+                                      allowedSkills: [...current, skillId],
+                                    });
+                                  } else {
+                                    setFormData({
+                                      ...formData,
+                                      allowedSkills: current.filter(
+                                        (s) => s !== skillId,
+                                      ),
+                                    });
+                                  }
+                                }}
+                                className="mr-3"
+                              />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                  <span className="font-medium text-gray-900">
+                                    {skill.name || skill.id}
+                                  </span>
+                                  <span className="text-xs text-gray-400 font-mono">
+                                    {skill.id}
+                                  </span>
+                                  {skill.version && (
+                                    <span className="text-xs text-gray-400">
+                                      v{skill.version}
+                                    </span>
+                                  )}
+                                </div>
+                                {skill.description && (
+                                  <p className="text-sm text-gray-600 mb-2">
+                                    {skill.description}
+                                  </p>
+                                )}
+                                <div className="flex flex-wrap gap-1.5">
+                                  {(skill.triggers || []).map((t) => (
+                                    <span
+                                      key={t}
+                                      className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded"
+                                    >
+                                      {t}
+                                    </span>
+                                  ))}
+                                  {(skill.tools || []).map((t) => (
+                                    <span
+                                      key={t}
+                                      className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded font-mono"
+                                    >
+                                      {t}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             {selectedKey === "tools" && (
               <div>
                 <div className="mb-4">
@@ -411,7 +547,7 @@ const AddAgentModal: React.FC<AddAgentModalProps> = ({
                     工具调用
                   </label>
                   <p className="text-sm text-gray-500 mb-4">
-                    选择智能体可以使用的工具，支持多选
+                    选择智能体可以使用的工具，支持多选。若已配置「技能」，技能命中时会覆盖这里选中的工具集。
                   </p>
                   {tools.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">

@@ -17,6 +17,7 @@ export interface CreateAgentRequest {
   model: ModelType;
   allowedTools?: string[];
   allowedKbs?: string[];
+  allowedSkills?: string[];
   chatOptions?: ChatOptions;
 }
 
@@ -27,6 +28,7 @@ export interface UpdateAgentRequest {
   model?: ModelType;
   allowedTools?: string[];
   allowedKbs?: string[];
+  allowedSkills?: string[];
   chatOptions?: ChatOptions;
 }
 
@@ -42,6 +44,7 @@ export interface AgentVO {
   model: ModelType;
   allowedTools?: string[];
   allowedKbs?: string[];
+  allowedSkills?: string[];
   chatOptions?: ChatOptions;
   createdAt?: string;
   updatedAt?: string;
@@ -374,6 +377,26 @@ export interface GetOptionalToolsResponse {
 export async function getOptionalTools(): Promise<GetOptionalToolsResponse> {
   const tools = await get<ToolVO[]>("/tools");
   return { tools };
+}
+
+/**
+ * Skill 相关类型和接口
+ */
+export interface SkillMetadata {
+  id: string;
+  name?: string;
+  description?: string;
+  version?: string;
+  triggers?: string[];
+  systemPromptFragment?: string;
+  tools?: string[];
+}
+
+/**
+ * 获取全部 Skill 元数据
+ */
+export async function getSkills(): Promise<SkillMetadata[]> {
+  return get<SkillMetadata[]>("/skills");
 }
 
 /**
