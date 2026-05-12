@@ -17,6 +17,8 @@ import {
   CloseCircleOutlined,
   SyncOutlined,
   ToolOutlined,
+  ApiOutlined,
+  DesktopOutlined,
 } from "@ant-design/icons";
 import {
   getTracesBySessionId,
@@ -62,6 +64,36 @@ const statusTag = (status?: TraceStatus) => {
     default:
       return <Tag>{status ?? "-"}</Tag>;
   }
+};
+
+/**
+ * 工具来源标签. source 格式:
+ *   - "LOCAL" / 空 / null  -> 本地 Spring Bean
+ *   - "MCP:<uuid>"         -> MCP 远端, 取前 8 位显示
+ */
+const sourceTag = (source?: string) => {
+  if (!source || source === "LOCAL") {
+    return (
+      <Tag color="default" icon={<DesktopOutlined />} className="!m-0">
+        本地
+      </Tag>
+    );
+  }
+  if (source.startsWith("MCP:")) {
+    const serverId = source.substring(4);
+    const short = serverId.replace(/-/g, "").substring(0, 8);
+    return (
+      <Tag
+        color="geekblue"
+        icon={<ApiOutlined />}
+        title={`MCP Server: ${serverId}`}
+        className="!m-0"
+      >
+        MCP · {short}
+      </Tag>
+    );
+  }
+  return <Tag className="!m-0">{source}</Tag>;
 };
 
 // ========== 列表项 ==========
@@ -195,11 +227,44 @@ const prettifyJson = (s?: string): string => {
   }
 };
 
+/**
+ * 在 step 级别的 "工具调用(N)" 标题旁, 总结本次 step 里工具的来源分布,
+ * 方便一眼看出这一步里 MCP 工具参与了几次.
+ */
+const summarizeSources = (calls: ToolCallTrace[]) => {
+  let local = 0;
+  const mcpServers = new Set<string>();
+  for (const c of calls) {
+    if (!c.source || c.source === "LOCAL") {
+      local++;
+    } else if (c.source.startsWith("MCP:")) {
+      mcpServers.add(c.source.substring(4));
+    }
+  }
+  const tags: React.ReactNode[] = [];
+  if (local > 0) {
+    tags.push(
+      <Tag key="local" color="default" className="!m-0 !text-xs">
+        本地 {local}
+      </Tag>,
+    );
+  }
+  if (mcpServers.size > 0) {
+    tags.push(
+      <Tag key="mcp" color="geekblue" className="!m-0 !text-xs">
+        MCP · {mcpServers.size} 服务器
+      </Tag>,
+    );
+  }
+  return <>{tags}</>;
+};
+
 const ToolCallItem: React.FC<{ toolCall: ToolCallTrace }> = ({ toolCall }) => (
   <div className="mb-2 last:mb-0">
-    <div className="flex items-center gap-2 mb-1 text-xs">
+    <div className="flex items-center gap-2 mb-1 text-xs flex-wrap">
       <ToolOutlined className="text-blue-500" />
       <span className="font-mono text-blue-600">{toolCall.toolName}</span>
+      {sourceTag(toolCall.source)}
       {statusTag(toolCall.status)}
     </div>
     {toolCall.arguments && (
@@ -289,7 +354,12 @@ const TraceDetailView: React.FC<{ detail: GetTraceDetailResponse }> = ({ detail 
                     items={[
                       {
                         key: "tools",
-                        label: `工具调用 (${relatedCalls.length})`,
+                        label: (
+                          <span className="flex items-center gap-2 flex-wrap">
+                            <span>工具调用 ({relatedCalls.length})</span>
+                            {summarizeSources(relatedCalls)}
+                          </span>
+                        ),
                         children: relatedCalls.map((tc) => (
                           <ToolCallItem key={tc.id} toolCall={tc} />
                         )),
